@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>QR•Studio | Генератор QR-кодов</title>
+  <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @import url('https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,100..900;1,100..900&display=swap');
+
+    body {
+      font-family: "Jost", sans-serif;
+      /* ГРАДИЕНТНЫЙ ФОН — плавный переход */
+      background: linear-gradient(145deg, #1a1a2e 0%, #16213e 40%, #0f0c29 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      padding: 2rem 1rem;
+      margin: 0;
+      position: relative;
+    }
+
+    /* легкая абстрактная текстура — без круга */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 70% 20%, rgba(100, 80, 220, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    h1 {
+      font-weight: 700;
+      font-size: 2.7rem;
+      letter-spacing: -0.5px;
+      background: linear-gradient(120deg, #FFFFFF, #CDC4FF, #B6A2FF);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 0.4rem;
+      text-align: center;
+      text-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .sub {
+      color: #D9D2FF;
+      font-weight: 500;
+      background: rgba(10, 10, 20, 0.5);
+      backdrop-filter: blur(4px);
+      padding: 0.3rem 1.5rem;
+      border-radius: 60px;
+      margin-bottom: 1.8rem;
+      font-size: 0.95rem;
+      text-align: center;
+      border: 1px solid rgba(255,255,240,0.2);
+    }
+
+    /* главная карточка — стеклянный эффект */
+    .glass-panel {
+      background: rgba(18, 18, 24, 0.75);
+      backdrop-filter: blur(14px);
+      border-radius: 42px;
+      padding: 2rem 2rem 1.6rem 2rem;
+      box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,245,0.08);
+      width: 100%;
+      max-width: 640px;
+      transition: all 0.2s ease;
+      z-index: 2;
+    }
+
+    /* ----- ГОРИЗОНТАЛЬНЫЙ РЯД КНОПОК ФОРМАТА (подсветка свечением, без плотной заливки) ----- */
+    .format-selector {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 6px;
+      border-radius: 70px;
+      justify-content: space-between;
+      flex-wrap: nowrap;
+      border: 1px solid rgba(255,255,220,0.12);
+    }
+
+    .format-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 11px 0;
+      border-radius: 60px;
+      font-family: "Jost", sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #CEC7FF;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-align: center;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    /* Эффект свечения при активации (без плотной заливки) */
+    .format-btn.active {
+      color: #ffffff;
+      text-shadow: 0 0 6px rgba(170, 140, 255, 0.8);
+      background: rgba(108, 92, 231, 0.2);
+      box-shadow: 0 0 12px rgba(108, 92, 231, 0.6), inset 0 0 4px rgba(255,255,255,0.1);
+      border: none;
+    }
+
+    .format-btn.active::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 60px;
+      padding: 1px;
+      background: linear-gradient(120deg, #AA92FF, #6C5CE7);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .format-btn:hover:not(.active) {
+      background: rgba(108, 92, 231, 0.25);
+      color: #F0EAFF;
+      box-shadow: 0 0 8px rgba(108, 92, 231, 0.4);
+    }
+
+    /* панели контента */
+    .content-pane {
+      display: none;
+      animation: fadeSlide 0.2s ease;
+    }
+
+    .content-pane.active-pane {
+      display: block;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(6px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+
+    /* поля ввода */
+    .input-field {
+      width: 100%;
+      padding: 1rem 1.2rem;
+      font-family: "Jost", monospace;
+      font-size: 1rem;
+      background: #26262C;
+      border: 1.5px solid #414157;
+      border-radius: 34px;
+      color: #F2ECFF;
+      outline: none;
+      transition: 0.2s;
+      margin-bottom: 1rem;
+    }
+
+    .input-field:focus {
+      border-color: #8B74FF;
+      box-shadow: 0 0 0 3px rgba(139, 116, 255, 0.3);
+    }
+
+    textarea.input-field {
+      resize: vertical;
+      min-height: 95px;
+    }
+
+    /* файловая зона */
+    .file-zone {
+      background: #26262C;
+      border: 2px dashed #7B68EE;
+      border-radius: 34px;
+      padding: 1.2rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .file-zone:hover {
+      background: #32323C;
+      border-color: #A58EFF;
+    }
+    .file-label-style {
+      background: transparent;
+      border: none;
+      display: inline-block;
+      padding: 0;
+      color: #CAB8FF;
+      font-weight: 500;
+      pointer-events: none;
+      width: auto;
+      font-size: 1rem;
+    }
+    #fileNameDisplay {
+      font-size: 0.85rem;
+      color: #CFC3FF;
+      margin-top: 10px;
+    }
+
+    /* кнопка генерации */
+    .gen-btn {
+      width: 100%;
+      background: linear-gradient(95deg, #5D4EE0, #7F6AEE);
+      border: none;
+      padding: 1rem;
+      font-family: "Jost", sans-serif;
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: white;
+      border-radius: 60px;
+      cursor: pointer;
+      margin: 1rem 0 1.2rem 0;
+      transition: all 0.2s;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+    }
+    .gen-btn:hover {
+      background: linear-gradient(95deg, #7062EA, #9580FF);
+      transform: scale(0.98);
+    }
+
+    /* QR-блок */
+    .qr-stage {
+      display: flex;
+      justify-content: center;
+      margin: 0.5rem 0 0.3rem;
+    }
+    #qrcode-wrapper {
+    background: #1D1D23;
+    border-radius: 36px;
+    padding: 18px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+    display: inline-block;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+    }
+
+    #qrcode-wrapper.visible {
+    opacity: 1;
+    visibility: visible;
+    }
+    #qrcode {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #qrcode img, #qrcode canvas, #qrcode table {
+      border-radius: 20px;
+      max-width: 260px;
+      height: auto;
+    }
+
+    /* зона кнопки скачивания */
+    .download-area {
+      text-align: center;
+      margin-top: 14px;
+      margin-bottom: 12px;
+    }
+    .download-btn {
+      background: rgba(108, 92, 231, 0.2);
+      border: 1.5px solid #8772F5;
+      padding: 9px 26px;
+      border-radius: 50px;
+      color: #E4DBFF;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      backdrop-filter: blur(4px);
+    }
+    .download-btn:hover {
+      background: #6C5CE7;
+      color: white;
+      border-color: #B6A2FF;
+      box-shadow: 0 0 10px rgba(108,92,231,0.6);
+    }
+
+    /* разделитель для блока создателя */
+    .creator-section {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,245,0.15);
+      text-align: center;
+      font-size: 0.85rem;
+      color: #B8ADF0;
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+    .creator-name {
+      font-weight: 600;
+      color: #D9CEFF;
+      margin-bottom: 4px;
+    }
+    .creator-email {
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #B5A8F5;
+      word-break: break-all;
+    }
+
+    @media (max-width: 540px) {
+      .glass-panel { padding: 1.4rem; }
+      .format-btn { font-size: 0.72rem; white-space: normal; padding: 8px 0; }
+      .format-selector { gap: 6px; }
+      h1 { font-size: 2rem; }
+      .sub { font-size: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+  <h1>⚡ Project·QR</h1>
+  <div class="sub">для ссылок, текста, контактов и файлов</div>
+
+  <div class="glass-panel">
+    <!-- горизонтальные кнопки выбора формата (подсветка свечением) -->
+    <div class="format-selector">
+      <button class="format-btn active" data-format="url">🔗 Ссылка / URL</button>
+      <button class="format-btn" data-format="text">📝 Текст</button>
+      <button class="format-btn" data-format="contact">📇 Контакт</button>
+      <button class="format-btn" data-format="file">📎 Файл</button>
+    </div>
+
+    <!-- панель: ссылка -->
+    <div id="panel-url" class="content-pane active-pane">
+      <input type="text" id="urlInput" class="input-field" placeholder="https:// или любой URL" value="https://">
+      <div class="info-tip" style="font-size:0.7rem; text-align:center; color:#ACA7DF;">Поддерживаются любые ссылки: сайты, соцсети, мессенджеры</div>
+    </div>
+
+    <!-- панель: текст -->
+    <div id="panel-text" class="content-pane">
+      <textarea id="plainText" class="input-field" rows="3" placeholder="Введите любой текст, заметку, секретное сообщение..."></textarea>
+    </div>
+
+    <!-- панель: Контакт vCard -->
+    <div id="panel-contact" class="content-pane">
+      <input type="text" id="contactName" class="input-field" placeholder="Имя и фамилия">
+      <input type="tel" id="contactPhone" class="input-field" placeholder="Телефон (напр. +7 999 123-45-67)">
+      <input type="email" id="contactEmail" class="input-field" placeholder="Email">
+      <input type="text" id="contactOrg" class="input-field" placeholder="Компания / должность (опционально)">
+      <div class="info-tip" style="font-size:0.7rem; text-align:center; color:#ACA7DF;">QR-код сохранит полный контакт в адресную книгу</div>
+    </div>
+
+    <!-- панель: загрузка файла -->
+    <div id="panel-file" class="content-pane">
+      <div id="fileDropZone" class="file-zone">
+        <span class="file-label-style">📂 Нажмите или перетащите файл</span>
+        <input type="file" id="fileInput" style="display: none;">
+        <div id="fileNameDisplay" style="font-size:0.8rem; margin-top:8px;"></div>
+      </div>
+      <div class="info-tip" style="font-size:0.7rem; text-align:center; color:#ACA7DF;">Поддерживаются: изображения, PDF, документы (txt, docx).<br>Максимум ~1.5 МБ</div>
+    </div>
+
+    <button class="gen-btn" id="generateBtn">✨ Создать QR-код</button>
+
+    <!-- блок с QR-кодом -->
+    <div class="qr-stage">
+      <div id="qrcode-wrapper">
+        <div id="qrcode"></div>
+      </div>
+    </div>
+    <div class="download-area" id="downloadBtnArea" style="display: none;">
+      <button id="downloadQRBtn" class="download-btn">💾 Скачать QR-код (PNG)</button>
+    </div>
+
+    <!-- БЛОК СОЗДАТЕЛЯ (как просили) -->
+    <div class="creator-section">
+      <div class="creator-name">Анисимов Д.А.</div>
+      <div class="creator-email">daniel28884qaz@gmail.com</div>
+    </div>
+  </div>
+
+  <script>
+    // -------- Переменные ----------
+    let currentQR = null;
+    let lastGeneratedData = null;     // строка для QR
+    let lastDataType = null;
+    let currentFileName = "";
+    let currentQRCanvas = null;        // храним canvas для скачивания (если создан)
+
+    // DOM
+    const qrcodeDiv = document.getElementById("qrcode");
+    const generateBtn = document.getElementById("generateBtn");
+    const downloadBtnArea = document.getElementById("downloadBtnArea");
+    const downloadQRBtn = document.getElementById("downloadQRBtn");
+    const qrcodeWrapper = document.getElementById("qrcode-wrapper");
+    // Кнопки форматов
+    const formatBtns = document.querySelectorAll(".format-btn");
+    const panels = {
+      url: document.getElementById("panel-url"),
+      text: document.getElementById("panel-text"),
+      contact: document.getElementById("panel-contact"),
+      file: document.getElementById("panel-file")
+    };
+    let currentFormat = "url";
+
+    // поля
+    const urlInput = document.getElementById("urlInput");
+    const plainTextarea = document.getElementById("plainText");
+    const contactName = document.getElementById("contactName");
+    const contactPhone = document.getElementById("contactPhone");
+    const contactEmail = document.getElementById("contactEmail");
+    const contactOrg = document.getElementById("contactOrg");
+    const fileInput = document.getElementById("fileInput");
+    const fileDropZone = document.getElementById("fileDropZone");
+    const fileNameDisplay = document.getElementById("fileNameDisplay");
+
+    // ----- Переключение форматов (только свечение, без заливки) -----
+    function setFormat(format) {
+      currentFormat = format;
+      formatBtns.forEach(btn => {
+        if(btn.dataset.format === format) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+      Object.keys(panels).forEach(key => {
+        if(key === format) panels[key].classList.add("active-pane");
+        else panels[key].classList.remove("active-pane");
+      });
+      // скрываем кнопку скачивания при смене вкладки (новый QR еще не сгенерирован)
+      downloadBtnArea.style.display = "none";
+      qrcodeWrapper.classList.remove("visible");
+    }
+
+    formatBtns.forEach(btn => {
+      btn.addEventListener("click", () => setFormat(btn.dataset.format));
+    });
+
+    // очистка QR
+    function clearQRVisual() {
+      qrcodeDiv.innerHTML = "";
+      currentQR = null;
+      currentQRCanvas = null;
+      
+    }
+
+    // Обработка файла (чтение base64)
+    function handleFile(file) {
+      if (!file) return;
+      const sizeMB = file.size / (1024 * 1024);
+      if (sizeMB > 2.5) alert("Файл больше 2.5 МБ — QR может не вместить данные. Лучше до 1.5 МБ.");
+      currentFileName = file.name;
+      fileNameDisplay.innerText = `📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64 = e.target.result.split(',')[1];
+        if (!base64) {
+          alert("Ошибка чтения файла");
+          return;
+        }
+        const totalChars = base64.length;
+        if(totalChars > 2950) alert(`Файл в кодировке base64 занимает ${totalChars} символов.\nQR-код может быть на грани вместимости.`);
+        const fileDataString = `FILE_DATA:${file.type}:${currentFileName}:${base64}`;
+        lastGeneratedData = fileDataString;
+        lastDataType = "file";
+        generateQRFromString(lastGeneratedData);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Генерация QR из строки (с возможностью потом скачать)
+    function generateQRFromString(textData) {
+      qrcodeDiv.innerHTML = "";
+      try {
+        qrcodeWrapper.classList.add("visible");
+        currentQR = new QRCode(qrcodeDiv, {
+          text: textData,
+          width: 280,
+          height: 280,
+          colorDark: "#dabfff",
+          colorLight: "#404042",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        // Показываем кнопку "Скачать QR-код" только после успешной генерации
+        downloadBtnArea.style.display = "block";
+        // Через небольшой таймаут пытаемся найти canvas для скачивания
+        setTimeout(() => {
+          captureCanvasForDownload();
+        }, 100);
+      } catch(e) {
+        console.error(e);
+        alert("Ошибка генерации QR: данные слишком объёмные или неверный формат.");
+        downloadBtnArea.style.display = "none";
+      }
+    }
+
+    // Сохраняем canvas (если создан библиотекой) для последующего скачивания
+    function captureCanvasForDownload() {
+      const container = document.getElementById("qrcode");
+      let canvas = container.querySelector("canvas");
+      if(canvas) {
+        currentQRCanvas = canvas;
+        return;
+      }
+      // если canvas нет (библиотека создала таблицу) – создаём скрытый canvas из данных, но не мешаем пользователю
+      if(lastGeneratedData) {
+        const offscreenDiv = document.createElement("div");
+        offscreenDiv.style.position = "absolute";
+        offscreenDiv.style.left = "-9999px";
+        document.body.appendChild(offscreenDiv);
+        const tempQR = new QRCode(offscreenDiv, {
+          text: lastGeneratedData,
+          width: 320,
+          height: 320,
+          colorDark: "#dabfff",
+          colorLight: "#404042",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        setTimeout(() => {
+          const tempCanvas = offscreenDiv.querySelector("canvas");
+          if(tempCanvas) {
+            currentQRCanvas = tempCanvas;
+          }
+          document.body.removeChild(offscreenDiv);
+        }, 60);
+      }
+    }
+
+    // Скачивание ТОЛЬКО по нажатию кнопки "Скачать"
+    function downloadQRAsPNG() {
+      if (!lastGeneratedData) {
+        alert("Сначала создайте QR-код через кнопку «Создать QR-код»");
+        return;
+      }
+      // Пытаемся скачать из сохраненного canvas или ищем актуальный
+      let canvas = currentQRCanvas;
+      if (!canvas) {
+        const container = document.getElementById("qrcode");
+        canvas = container.querySelector("canvas");
+      }
+      if (canvas) {
+        downloadFromCanvas(canvas);
+        return;
+      }
+      // Если canvas до сих пор нет, генерируем временный специально для скачивания
+      if(lastGeneratedData) {
+        const tempDiv = document.createElement("div");
+        tempDiv.style.position = "absolute";
+        tempDiv.style.left = "-9999px";
+        document.body.appendChild(tempDiv);
+        const newQR = new QRCode(tempDiv, {
+          text: lastGeneratedData,
+          width: 330,
+          height: 330,
+          colorDark: "#dabfff",
+          colorLight: "#404042",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        setTimeout(() => {
+          const newCanvas = tempDiv.querySelector("canvas");
+          if(newCanvas) {
+            downloadFromCanvas(newCanvas);
+          } else {
+            alert("Не удалось создать изображение QR-кода для скачивания.");
+          }
+          document.body.removeChild(tempDiv);
+        }, 80);
+      } else {
+        alert("Нет данных для генерации изображения.");
+      }
+    }
+
+    function downloadFromCanvas(canvasEl) {
+      try {
+        let filename = "qrcode.png";
+        if(currentFormat === "file" && currentFileName) {
+          let base = currentFileName.split('.')[0] || "file";
+          filename = `QR_${base}.png`;
+        } else if(currentFormat === "url" && urlInput.value.trim()) {
+          filename = "QR_link.png";
+        } else if(currentFormat === "contact") {
+          filename = "QR_contact.png";
+        } else if(currentFormat === "text") {
+          filename = "QR_text.png";
+        } else {
+          filename = "qrcode_studio.png";
+        }
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = canvasEl.toDataURL("image/png");
+        link.click();
+      } catch(e) {
+        alert("Ошибка сохранения изображения");
+      }
+    }
+
+    // Получить данные из текущей активной панели
+    function getCurrentData() {
+      switch(currentFormat) {
+        case "url":
+          let url = urlInput.value.trim();
+          if(!url) { alert("Введите URL или ссылку"); return null; }
+          if(!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("ftp://")) {
+            if(confirm("Добавить https:// в начало?")) {
+              url = "https://" + url;
+              urlInput.value = url;
+            } else return null;
+          }
+          lastDataType = "url";
+          return url;
+        case "text":
+          let txt = plainTextarea.value.trim();
+          if(!txt) { alert("Введите текст для QR-кода"); return null; }
+          lastDataType = "text";
+          return txt;
+        case "contact":
+          let name = contactName.value.trim();
+          let phone = contactPhone.value.trim();
+          let email = contactEmail.value.trim();
+          let org = contactOrg.value.trim();
+          if(!name && !phone && !email) { alert("Заполните имя, телефон или email"); return null; }
+          let vcard = "BEGIN:VCARD\nVERSION:3.0\n";
+          if(name) vcard += `FN:${name}\nN:${name};;;\n`;
+          if(phone) vcard += `TEL:${phone}\n`;
+          if(email) vcard += `EMAIL:${email}\n`;
+          if(org) vcard += `ORG:${org}\n`;
+          vcard += "END:VCARD";
+          lastDataType = "contact";
+          return vcard;
+        case "file":
+          if(!fileInput.files.length && !lastGeneratedData?.startsWith("FILE_DATA:")) {
+            alert("Выберите файл через область загрузки");
+            return null;
+          }
+          if(fileInput.files.length > 0 && (!lastGeneratedData || !lastGeneratedData.startsWith("FILE_DATA:"))) {
+            handleFile(fileInput.files[0]);
+            return "PROCESSING_FILE";
+          }
+          if(lastGeneratedData && lastGeneratedData.startsWith("FILE_DATA:")) return lastGeneratedData;
+          alert("Не удалось подготовить файл.");
+          return null;
+        default: return null;
+      }
+    }
+
+    // Генерация по клику (кнопка "Создать QR-код")
+    function onGenerate() {
+      const data = getCurrentData();
+      if(data === "PROCESSING_FILE") return;
+      if(!data) return;
+      lastGeneratedData = data;
+      generateQRFromString(data);
+    }
+
+    // Файловые обработчики
+    fileDropZone.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", (e) => {
+      if(e.target.files.length) handleFile(e.target.files[0]);
+    });
+    fileDropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      fileDropZone.style.background = "#3A3A48";
+    });
+    fileDropZone.addEventListener("dragleave", () => {
+      fileDropZone.style.background = "#26262C";
+    });
+    fileDropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      fileDropZone.style.background = "#26262C";
+      if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    generateBtn.addEventListener("click", onGenerate);
+    downloadQRBtn.addEventListener("click", downloadQRAsPNG);
+
+    // Инициализация
+    clearQRVisual();
+    if(urlInput.value === "") urlInput.value = "https://";
+    setFormat("url");
+  </script>
+</body>
+</html>
